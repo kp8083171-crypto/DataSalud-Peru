@@ -1,0 +1,11 @@
+USE Base_De_Datos_BD;
+GO
+
+SELECT
+    name AS NombreTrigger,
+    OBJECT_NAME(parent_id) AS TablaAsociada,
+    create_date AS FechaCreacion,
+    is_disabled AS Deshabilitado
+FROM sys.triggers
+ORDER BY name;
+GO
