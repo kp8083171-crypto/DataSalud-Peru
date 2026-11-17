@@ -1,0 +1,49 @@
+USE DataSalud_Peru;
+GO
+
+-- 1. Crear o actualizar el trigger
+CREATE OR ALTER TRIGGER dbo.trg_ValidarSaludMental
+ON dbo.SaludMentalValidada
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM inserted
+        WHERE Atendidos IS NULL
+           OR Atenciones IS NULL
+           OR NroMes IS NULL
+           OR Atendidos < 0
+           OR Atenciones < 0
+           OR NroMes NOT BETWEEN 1 AND 12
+    )
+    BEGIN
+        THROW 50002,
+            'Error: datos invalidos en salud mental.', 1;
+    END;
+END;
+GO
+
+-- 2. Probar el trigger con un mes invalido
+BEGIN TRY
+
+    UPDATE TOP (1) dbo.SaludMentalValidada
+    SET NroMes = 13
+    WHERE Departamento = 'LA LIBERTAD';
+
+END TRY
+BEGIN CATCH
+
+    SELECT ERROR_MESSAGE() AS Error_Detectado;
+
+END CATCH;
+GO
+
+-- 3. Verificar que no se guardaron meses invalidos
+SELECT COUNT(*) AS Registros_Invalidos
+FROM dbo.SaludMentalValidada
+WHERE NroMes NOT BETWEEN 1 AND 12;
+GO
