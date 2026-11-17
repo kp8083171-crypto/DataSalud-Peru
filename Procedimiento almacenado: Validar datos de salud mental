@@ -1,0 +1,49 @@
+USE DataSalud_Peru;
+GO
+
+-- Procedimiento para validar la calidad de los datos
+CREATE OR ALTER PROCEDURE dbo.sp_ValidarSaludMental
+    @Departamento VARCHAR(100)
+AS
+BEGIN
+    BEGIN TRY
+
+        SELECT
+            COUNT(*) AS Total_Registros,
+
+            SUM(CASE
+                WHEN ubigeo IS NULL
+                THEN 1 ELSE 0
+            END) AS Sin_Ubigeo,
+
+            SUM(CASE
+                WHEN Diagnostico IS NULL
+                THEN 1 ELSE 0
+            END) AS Sin_Diagnostico,
+
+            SUM(CASE
+                WHEN Atendidos IS NULL OR Atendidos < 0
+                THEN 1 ELSE 0
+            END) AS Atendidos_Invalidos,
+
+            SUM(CASE
+                WHEN Atenciones IS NULL OR Atenciones < 0
+                THEN 1 ELSE 0
+            END) AS Atenciones_Invalidas
+
+        FROM dbo.[DAT SALUD MENTAL - ATENDIDOS]
+        WHERE Departamento LIKE '%' + @Departamento + '%';
+
+    END TRY
+    BEGIN CATCH
+
+        SELECT ERROR_MESSAGE() AS Mensaje_Error;
+
+    END CATCH
+END;
+GO
+
+-- Ejecutar el procedimiento
+EXEC dbo.sp_ValidarSaludMental
+    @Departamento = 'LA LIBERTAD';
+GO
