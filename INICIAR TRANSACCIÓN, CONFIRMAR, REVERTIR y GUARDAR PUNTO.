@@ -1,0 +1,63 @@
+USE DataSalud_Peru;
+GO
+
+-- 1. Crear una tabla para los datos validados
+IF OBJECT_ID('dbo.SaludMentalValidada', 'U') IS NULL
+BEGIN
+    SELECT TOP 0 *
+    INTO dbo.SaludMentalValidada
+    FROM dbo.[DAT SALUD MENTAL - ATENDIDOS];
+END;
+GO
+
+-- 2. Crear el procedimiento almacenado
+CREATE OR ALTER PROCEDURE dbo.sp_CargarSaludMental
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Limpiar la tabla de destino
+        DELETE FROM dbo.SaludMentalValidada;
+
+        -- Crear punto de guardado
+        SAVE TRANSACTION PuntoGuardado;
+
+        -- Insertar solo registros validos
+        INSERT INTO dbo.SaludMentalValidada
+        SELECT *
+        FROM dbo.[DAT SALUD MENTAL - ATENDIDOS]
+        WHERE ubigeo IS NOT NULL
+          AND Diagnostico IS NOT NULL
+          AND Atendidos >= 0
+          AND Atenciones >= 0
+          AND NroMes BETWEEN 1 AND 12;
+
+        -- Confirmar los cambios
+        COMMIT TRANSACTION;
+
+        PRINT 'Datos cargados correctamente';
+
+    END TRY
+    BEGIN CATCH
+
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        SELECT ERROR_MESSAGE() AS Mensaje_Error;
+
+    END CATCH
+END;
+GO
+
+-- 3. Ejecutar el procedimiento
+EXEC dbo.sp_CargarSaludMental;
+GO
+
+-- 4. Verificar los resultados
+SELECT
+    COUNT(*) AS Total_Registros_Validados
+FROM dbo.SaludMentalValidada;
+GO
