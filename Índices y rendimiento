@@ -1,0 +1,44 @@
+USE DataSalud_Peru;
+GO
+
+-- 1. Activar estadisticas de rendimiento
+SET STATISTICS IO ON;
+SET STATISTICS TIME ON;
+GO
+
+-- 2. Consulta ANTES del indice
+SELECT
+    Departamento,
+    Diagnostico,
+    SUM(CAST(Atenciones AS BIGINT)) AS Total_Atenciones
+FROM dbo.SaludMentalValidada
+WHERE Departamento = 'LA LIBERTAD'
+GROUP BY Departamento, Diagnostico
+ORDER BY Total_Atenciones DESC;
+GO
+
+-- 3. Crear indice compuesto
+CREATE NONCLUSTERED INDEX IX_Salud_Departamento_Diagnostico
+ON dbo.SaludMentalValidada
+(
+    Departamento,
+    Diagnostico
+)
+INCLUDE (Atenciones);
+GO
+
+-- 4. Consulta DESPUES del indice
+SELECT
+    Departamento,
+    Diagnostico,
+    SUM(CAST(Atenciones AS BIGINT)) AS Total_Atenciones
+FROM dbo.SaludMentalValidada
+WHERE Departamento = 'LA LIBERTAD'
+GROUP BY Departamento, Diagnostico
+ORDER BY Total_Atenciones DESC;
+GO
+
+-- 5. Desactivar estadisticas
+SET STATISTICS IO OFF;
+SET STATISTICS TIME OFF;
+GO
