@@ -1,0 +1,74 @@
+USE DataSalud_Peru;
+GO
+
+-- 1. Crear tabla de auditoria
+IF OBJECT_ID('dbo.AuditoriaSalud', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AuditoriaSalud
+    (
+        IdAuditoria INT IDENTITY(1,1) PRIMARY KEY,
+        Operacion VARCHAR(20),
+        Usuario VARCHAR(128),
+        Fecha DATETIME DEFAULT GETDATE(),
+        RegistrosAfectados INT
+    );
+END;
+GO
+
+-- 2. Crear trigger de auditoria
+CREATE OR ALTER TRIGGER dbo.trg_AuditoriaSalud
+ON dbo.SaludMentalValidada
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Operacion VARCHAR(20);
+    DECLARE @Cantidad INT;
+
+    IF EXISTS (SELECT 1 FROM inserted)
+       AND EXISTS (SELECT 1 FROM deleted)
+    BEGIN
+        SET @Operacion = 'UPDATE';
+        SELECT @Cantidad = COUNT(*) FROM inserted;
+    END
+    ELSE IF EXISTS (SELECT 1 FROM inserted)
+    BEGIN
+        SET @Operacion = 'INSERT';
+        SELECT @Cantidad = COUNT(*) FROM inserted;
+    END
+    ELSE
+    BEGIN
+        SET @Operacion = 'DELETE';
+        SELECT @Cantidad = COUNT(*) FROM deleted;
+    END;
+
+    INSERT INTO dbo.AuditoriaSalud
+    (
+        Operacion, Usuario, Fecha, RegistrosAfectados
+    )
+    VALUES
+    (
+        @Operacion,
+        SYSTEM_USER,
+        GETDATE(),
+        @Cantidad
+    );
+END;
+GO
+
+-- 3. Probar el trigger con una actualizacion
+BEGIN TRANSACTION;
+
+UPDATE TOP (1) dbo.SaludMentalValidada
+SET Atenciones = Atenciones + 1
+WHERE Departamento = 'LA LIBERTAD';
+
+-- Verificar la auditoria antes de revertir
+SELECT TOP 5 *
+FROM dbo.AuditoriaSalud
+ORDER BY IdAuditoria DESC;
+
+-- Deshacer la prueba para conservar datos
+ROLLBACK TRANSACTION;
+GO
